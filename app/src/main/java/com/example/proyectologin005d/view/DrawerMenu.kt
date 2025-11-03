@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Fastfood
 import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material.icons.filled.LocalFireDepartment
@@ -121,6 +122,15 @@ fun DrawerMenu(
 
                 ) // fin DrawerItem
             } // fin item 5
+
+            item {
+                NavigationDrawerItem(
+                    label = { Text("Contáctanos") },
+                    selected = false,
+                    onClick = { navController.navigate("contactanos") },
+                    icon = { Icon(Icons.Default.Email, contentDescription = "Contáctanos") }
+                )
+            }
 
 
         } // fin Lazy
