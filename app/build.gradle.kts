@@ -85,6 +85,8 @@ dependencies {
     // Icons extendidos (Fastfood, Grass, etc.)
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.material3:material3")
+    //Para que lea el json
+    implementation("com.google.code.gson:gson:2.10.1")
 
 
     // Cargar fuentes Google (Lato, Pacifico) con Compose
