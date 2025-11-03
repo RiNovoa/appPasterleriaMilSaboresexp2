@@ -2,24 +2,20 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-
-    // Agregar esto para habilitar KAPT
-
-    kotlin("kapt")
-
+    id("org.jetbrains.kotlin.kapt")
+    // NO necesitas otro plugin especial de Compose
 }
 
 android {
     namespace = "com.example.proyectologin005d"
-    compileSdk = 36
+    compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.proyectologin006d"
+        applicationId = "com.example.proyectologin005d"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -32,50 +28,62 @@ android {
             )
         }
     }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
+
     buildFeatures {
-        compose = true
+        viewBinding = true
+                        // ← HABILITA COMPOSE
     }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.15" // ← extensiones de Compose
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = "17" }
 }
 
 dependencies {
+    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("com.google.android.material:material:1.12.0")
 
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
+    // Activity Compose (setContent, etc.)
+    implementation("androidx.activity:activity-compose:1.9.3")
 
-    // Dependencia para la navegación con Jetpack Compose
-    implementation("androidx.navigation:navigation-compose:2.7.7")
+    // Compose BOM + UI + Material 3 + tooling
+    implementation(platform("androidx.compose:compose-bom:2024.10.01"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    debugImplementation("androidx.compose.ui:ui-tooling")
 
-// Íconos (core opcional) y EXTENDIDOS (¡este es el clave!)
-    implementation("androidx.compose.material:material-icons-core")
+    // Navigation Compose
+    implementation("androidx.navigation:navigation-compose:2.8.3")
+
+    // Lifecycle / ViewModel (si usas viewModel())
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.6")
+
+    // Room
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
+
+    // DataStore
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+
+    // Icons extendidos (Fastfood, Grass, etc.)
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.material3:material3")
 
-
-
-// Dependencias Room
-    implementation("androidx.room:room-runtime:2.6.1")  // Versión actualizada
-    kapt("androidx.room:room-compiler:2.6.1")          // Misma versión
-    implementation("androidx.room:room-ktx:2.6.1")     // Misma versión
-
-
-
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
 }
