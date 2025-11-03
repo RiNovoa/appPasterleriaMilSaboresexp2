@@ -31,7 +31,7 @@ android {
 
     buildFeatures {
         viewBinding = true
-                        // ← HABILITA COMPOSE
+        // ← HABILITA COMPOSE
     }
 
     composeOptions {
@@ -85,5 +85,10 @@ dependencies {
     // Icons extendidos (Fastfood, Grass, etc.)
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.material3:material3")
+
+
+    // Cargar fuentes Google (Lato, Pacifico) con Compose
+    implementation("androidx.compose.ui:ui-text-google-fonts")
+
 
 }
