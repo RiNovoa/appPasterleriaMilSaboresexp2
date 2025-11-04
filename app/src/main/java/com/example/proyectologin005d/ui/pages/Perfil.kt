@@ -13,7 +13,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -34,7 +33,6 @@ import com.example.proyectologin005d.data.repository.AuthRepository
 import kotlinx.coroutines.launch
 import java.io.File
 
-// Íconos
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PhotoLibrary
@@ -52,68 +50,73 @@ fun PerfilScreen(
     val authRepository = remember { AuthRepository(context) }
     var user by remember { mutableStateOf<User?>(null) }
 
-    // Cargar usuario y foto guardada
-    var fotoUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var fotoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     LaunchedEffect(Unit) {
         val username = authRepository.getSessionUsername()
         if (username != null) {
             user = authRepository.getUserByUsername(username)
-            fotoUri = loadPhotoUriForUser(context, username)
+            val savedUri = loadPhotoUriForUser(context, username)
+            if (savedUri != null) {
+                fotoUri = Uri.parse(savedUri)
+            }
         }
     }
 
-    // -------- Cámara (TakePicture) --------
-    var outputUri by remember { mutableStateOf<Uri?>(null) }
-    val takePicture = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { ok ->
-        if (ok && outputUri != null) {
-            val uriString = outputUri.toString()
-            fotoUri = uriString
-            user?.let { savePhotoUriForUser(context, it.nombre, uriString) }
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+        onResult = { success ->
+            if (success) {
+                fotoUri?.let { uri ->
+                    user?.correo?.let { username ->
+                        savePhotoUriForUser(context, username, uri.toString())
+                    }
+                }
+            }
         }
-    }
+    )
 
-    val requestCamera = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            outputUri = createImageUri(context)
-            outputUri?.let { takePicture.launch(it) }
-        } else {
-            Toast.makeText(context, "Se requiere permiso de cámara", Toast.LENGTH_SHORT).show()
+    val requestCameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                val newUri = createImageUri(context)
+                fotoUri = newUri
+                takePictureLauncher.launch(newUri)
+            } else {
+                Toast.makeText(context, "Se requiere permiso de cámara", Toast.LENGTH_SHORT).show()
+            }
         }
-    }
+    )
 
     fun launchCamera() {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
-            == PackageManager.PERMISSION_GRANTED
-        ) {
-            outputUri = createImageUri(context)
-            outputUri?.let { takePicture.launch(it) }
-        } else {
-            requestCamera.launch(Manifest.permission.CAMERA)
+        when (PackageManager.PERMISSION_GRANTED) {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) -> {
+                val newUri = createImageUri(context)
+                fotoUri = newUri
+                takePictureLauncher.launch(newUri)
+            }
+            else -> requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
-    // -------- Galería (Photo Picker) --------
-    val pickFromGallery = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri != null) {
-            val uriString = uri.toString()
-            fotoUri = uriString
-            user?.let { savePhotoUriForUser(context, it.nombre, uriString) }
+    val pickFromGalleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            if (uri != null) {
+                fotoUri = uri
+                user?.correo?.let { username ->
+                    savePhotoUriForUser(context, username, uri.toString())
+                }
+            }
         }
-    }
+    )
 
     fun launchGallery() {
-        pickFromGallery.launch(
+        pickFromGalleryLauncher.launch(
             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
         )
     }
 
-    // -------- Bottom sheet con opciones --------
     var showSheet by remember { mutableStateOf(false) }
     if (showSheet) {
         ModalBottomSheet(
@@ -128,30 +131,19 @@ fun PerfilScreen(
                     leadingContent = { Icon(Icons.Outlined.PhotoCamera, null) },
                     headlineContent = { Text("Tomar foto") },
                     supportingContent = { Text("Usar la cámara del dispositivo") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            showSheet = false
-                            launchCamera()
-                        }
+                    modifier = Modifier.fillMaxWidth().clickable { showSheet = false; launchCamera() }
                 )
                 ListItem(
                     leadingContent = { Icon(Icons.Outlined.PhotoLibrary, null) },
                     headlineContent = { Text("Elegir de galería") },
                     supportingContent = { Text("Seleccionar una imagen del dispositivo") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            showSheet = false
-                            launchGallery()
-                        }
+                    modifier = Modifier.fillMaxWidth().clickable { showSheet = false; launchGallery() }
                 )
                 Spacer(Modifier.height(8.dp))
             }
         }
     }
 
-    // -------- Layout principal con botón fijo abajo --------
     Scaffold(
         bottomBar = {
             Surface(shadowElevation = 8.dp) {
@@ -165,55 +157,34 @@ fun PerfilScreen(
                             }
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp)
-                        .height(52.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = cs.secondary,
-                        contentColor = cs.onSecondary
-                    )
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp).height(52.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = cs.secondary, contentColor = cs.onSecondary)
                 ) {
                     Text("Cerrar sesión", style = ty.titleMedium)
                 }
             }
         }
     ) { innerPadding ->
-
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // --- Avatar grande ---
-            val imgModel: Any = fotoUri ?: R.drawable.ic_default_profile
             AsyncImage(
-                model = imgModel,
+                model = fotoUri ?: R.drawable.ic_default_profile,
                 contentDescription = "Foto de perfil",
-                modifier = Modifier
-                    .size(144.dp)
-                    .clip(CircleShape)
-                    .border(3.dp, cs.primary, CircleShape),
+                modifier = Modifier.size(144.dp).clip(CircleShape).border(3.dp, cs.primary, CircleShape),
                 contentScale = ContentScale.Crop
             )
 
             Spacer(Modifier.height(14.dp))
 
-            OutlinedButton(
-                onClick = { showSheet = true },
-                modifier = Modifier.height(40.dp)
-            ) { Text("Cambiar foto") }
+            OutlinedButton(onClick = { showSheet = true }, modifier = Modifier.height(40.dp)) { Text("Cambiar foto") }
 
             Spacer(Modifier.height(18.dp))
 
-            // --- Card de nombre y correo (uniformes, centrados) ---
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = cs.surfaceContainerHigh
-                )
+                colors = CardDefaults.elevatedCardColors(containerColor = cs.surfaceContainerHigh)
             ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
@@ -236,26 +207,18 @@ fun PerfilScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            // Empujar el bloque de beneficios hacia abajo
             Spacer(Modifier.weight(1f))
 
-            // --- Beneficios activos (pegado al botón inferior) ---
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = cs.surfaceContainerLow
-                )
+                colors = CardDefaults.elevatedCardColors(containerColor = cs.surfaceContainerLow)
             ) {
                 Column(Modifier.padding(16.dp)) {
-                    Text(
-                        "Beneficios activos",
-                        style = ty.titleMedium,
-                        color = cs.primary
-                    )
+                    Text("Beneficios activos", style = ty.titleMedium, color = cs.primary)
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "• 10% de descuento permanente (FELICES50)\n" +
-                                "• Regalo de cumpleaños con correo Duoc",
+                        "• Regalo de cumpleaños con correo Duoc",
                         style = ty.bodyMedium,
                         color = cs.onSurfaceVariant
                     )
@@ -265,26 +228,16 @@ fun PerfilScreen(
     }
 }
 
-/* ====================== Helpers ====================== */
-
-private fun createImageUri(context: Context): Uri? {
+private fun createImageUri(context: Context): Uri {
     val dir = File(context.filesDir, "photos").apply { mkdirs() }
     val file = File(dir, "perfil_${System.currentTimeMillis()}.jpg")
-    return FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        file
-    )
+    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 }
 
 private fun savePhotoUriForUser(context: Context, username: String, uri: String) {
-    context.getSharedPreferences("perfil_photos", Context.MODE_PRIVATE)
-        .edit()
-        .putString("photo_$username", uri)
-        .apply()
+    context.getSharedPreferences("perfil_photos", Context.MODE_PRIVATE).edit().putString("photo_$username", uri).apply()
 }
 
 private fun loadPhotoUriForUser(context: Context, username: String): String? {
-    return context.getSharedPreferences("perfil_photos", Context.MODE_PRIVATE)
-        .getString("photo_$username", null)
+    return context.getSharedPreferences("perfil_photos", Context.MODE_PRIVATE).getString("photo_$username", null)
 }

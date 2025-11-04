@@ -14,7 +14,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.OffsetMapping
@@ -22,7 +21,7 @@ import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.proyectologin005d.R
+import coil.compose.rememberAsyncImagePainter
 
 // Transformación para el número de tarjeta (#### #### #### ####)
 class CardNumberVisualTransformation : VisualTransformation {
@@ -95,8 +94,10 @@ fun PaymentScreen(navController: NavController, total: Int) {
     var cvvError by remember { mutableStateOf<String?>(null) }
 
     val isFormValid by derivedStateOf {
-        cardNameError == null && cardNumberError == null && expiryDateError == null && cvvError == null &&
-        cardName.isNotBlank() && cardNumber.isNotBlank() && expiryDate.isNotBlank() && cvv.isNotBlank()
+        cardName.isNotBlank() && cardNameError == null &&
+        cardNumber.length == 16 && cardNumberError == null &&
+        expiryDate.length == 4 && expiryDateError == null &&
+        cvv.length in 3..4 && cvvError == null
     }
 
     fun validateCardName() {
@@ -105,34 +106,22 @@ fun PaymentScreen(navController: NavController, total: Int) {
 
     fun validateCardNumber() {
         cardNumberError = when {
-            cardNumber.isBlank() -> "El número no puede estar vacío"
             !cardNumber.all { it.isDigit() } -> "Debe contener solo números"
-            cardNumber.length != 16 -> "Debe tener 16 dígitos"
             else -> null
         }
     }
 
     fun validateExpiryDate() {
-        expiryDateError = when {
-            expiryDate.isBlank() -> "La fecha no puede estar vacía"
-            expiryDate.length != 4 -> "Debe tener 4 dígitos (MMAA)"
-            !expiryDate.all { it.isDigit() } -> "Debe contener solo números"
-            else -> {
-                val month = expiryDate.substring(0, 2).toIntOrNull()
-                if (month == null || month !in 1..12) {
-                    "Mes inválido"
-                } else {
-                    null
-                }
-            }
+        expiryDateError = if (!expiryDate.all { it.isDigit() }) {
+            "Formato MM/AA inválido"
+        } else {
+            null
         }
     }
 
     fun validateCvv() {
         cvvError = when {
-            cvv.isBlank() -> "El CVV no puede estar vacío"
             !cvv.all { it.isDigit() } -> "Debe ser numérico"
-            cvv.length !in 3..4 -> "Debe tener 3 o 4 dígitos"
             else -> null
         }
     }
@@ -166,7 +155,7 @@ fun PaymentScreen(navController: NavController, total: Int) {
             ) {
                 Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                     if (rotation < 90f) {
-                        Image(painter = painterResource(id = R.drawable.logo), contentDescription = null, modifier = Modifier.height(40.dp))
+                        Image(painter = rememberAsyncImagePainter(model = "file:///android_asset/img/logo.png"), contentDescription = null, modifier = Modifier.height(40.dp))
                         Spacer(modifier = Modifier.weight(1f))
                         Text(text = CardNumberVisualTransformation().filter(AnnotatedString(cardNumber)).text.text, color = Color.White)
                         Row {

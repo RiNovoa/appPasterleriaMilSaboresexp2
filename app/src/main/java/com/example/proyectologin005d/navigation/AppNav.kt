@@ -2,17 +2,8 @@ package com.example.proyectologin005d.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cake
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Mail
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -26,24 +17,18 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.proyectologin005d.login.LoginScreen
+import com.example.proyectologin005d.ui.login.LoginScreen
 import com.example.proyectologin005d.ui.login.RegisterScreen
-import com.example.proyectologin005d.ui.pages.CarritoScreen
-import com.example.proyectologin005d.ui.pages.ContactoScreen
-import com.example.proyectologin005d.ui.pages.IndexScreen
-import com.example.proyectologin005d.ui.pages.Nosotros
-import com.example.proyectologin005d.ui.pages.PaymentScreen
-import com.example.proyectologin005d.ui.pages.PerfilScreen
-import com.example.proyectologin005d.ui.pages.ProductosScreen
+import com.example.proyectologin005d.ui.pages.*
 import com.example.proyectologin005d.viewmodel.CartViewModel
 
 sealed class Screen(val route: String, val label: String, val icon: @Composable () -> Unit) {
-    object Index     : Screen("index",       "Inicio",   { Icon(Icons.Default.Home,         null) })
-    object Nosotros  : Screen("nosotros",    "Nosotros", { Icon(Icons.Default.Info,         null) })
-    object Contacto  : Screen("contactanos", "Contacto", { Icon(Icons.Default.Mail,         null) })
-    object Productos : Screen("productos",   "Productos",{ Icon(Icons.Default.Cake,         null) })
-    object Carrito   : Screen("carrito",     "Carrito",  { Icon(Icons.Default.ShoppingCart, null) })
-    object Perfil    : Screen("perfil",      "Perfil",   { Icon(Icons.Default.Person,       null) })
+    object Index : Screen("index", "Inicio", { Icon(Icons.Default.Home, null) })
+    object Nosotros : Screen("nosotros", "Nosotros", { Icon(Icons.Default.Info, null) })
+    object Contacto : Screen("contactanos", "Contacto", { Icon(Icons.Default.Mail, null) })
+    object Productos : Screen("productos", "Productos", { Icon(Icons.Default.Cake, null) })
+    object Carrito : Screen("carrito", "Carrito", { Icon(Icons.Default.ShoppingCart, null) })
+    object Perfil : Screen("perfil", "Perfil", { Icon(Icons.Default.Person, null) })
 }
 
 @Composable
@@ -54,16 +39,15 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
         Screen.Index, Screen.Nosotros, Screen.Contacto,
         Screen.Productos, Screen.Carrito, Screen.Perfil
     )
-    val screenRoutes = screens.map { it.route }.toSet()
-
-    val backStackEntry by navController.currentBackStackEntryAsState()
-    val showBottomBar = backStackEntry?.destination?.route in screenRoutes
 
     Scaffold(
         bottomBar = {
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentDestination = navBackStackEntry?.destination
+            val showBottomBar = screens.any { it.route == currentDestination?.route }
+
             if (showBottomBar) {
                 BottomAppBar {
-                    val currentDestination = backStackEntry?.destination
                     screens.forEach { screen ->
                         NavigationBarItem(
                             icon = screen.icon,
@@ -89,16 +73,13 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
             startDestination = "login",
             modifier = Modifier.padding(innerPadding)
         ) {
-            // Auth
             composable("login") { LoginScreen(navController) }
             composable("register") { RegisterScreen(navController) }
-
-            // Contenido con BottomBar
-            composable("index")       { IndexScreen(navController) }
-            composable("nosotros")    { Nosotros() }
+            composable("index") { IndexScreen(navController) }
+            composable("nosotros") { Nosotros() }
             composable("contactanos") { ContactoScreen() }
-            composable("productos")   { ProductosScreen(cartViewModel) }
-            composable("carrito")     { CarritoScreen(cartViewModel, navController) }
+            composable("productos") { ProductosScreen(cartViewModel) }
+            composable("carrito") { CarritoScreen(cartViewModel, navController) }
             composable("perfil") { PerfilScreen(navController) }
             composable(
                 route = "payment/{total}",

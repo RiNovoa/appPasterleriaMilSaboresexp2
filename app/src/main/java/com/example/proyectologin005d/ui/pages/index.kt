@@ -17,14 +17,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
-import com.example.proyectologin005d.R
 import com.example.proyectologin005d.data.Pastel
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -44,13 +42,10 @@ fun IndexScreen(navController: NavController) {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Encabezado con logo
         Image(
-            painter = painterResource(id = R.drawable.logo),
+            painter = rememberAsyncImagePainter(model = "file:///android_asset/img/logo.png"),
             contentDescription = "Logo Pastelería 1000 Sabores",
-            modifier = Modifier
-                .height(120.dp)
-                .padding(8.dp),
+            modifier = Modifier.height(120.dp).padding(8.dp),
             contentScale = ContentScale.Fit
         )
 
@@ -62,19 +57,13 @@ fun IndexScreen(navController: NavController) {
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        // Imagen destacada
         Image(
-            painter = painterResource(id = R.drawable.local),
+            painter = rememberAsyncImagePainter(model = "file:///android_asset/img/local.jpg"),
             contentDescription = "Fachada de la tienda",
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-                .padding(vertical = 8.dp)
-                .clip(RoundedCornerShape(12.dp)),
+            modifier = Modifier.fillMaxWidth().height(200.dp).padding(vertical = 8.dp).clip(RoundedCornerShape(12.dp)),
             contentScale = ContentScale.Crop
         )
 
-        // Mensaje de bienvenida
         Text(
             text = "Bienvenidos al dulce mundo de 1000 Sabores. " +
                     "Aquí cada pastel es una historia, cada sabor un recuerdo y cada visita una sonrisa.",
@@ -89,7 +78,6 @@ fun IndexScreen(navController: NavController) {
             modifier = Modifier.padding(vertical = 20.dp)
         )
 
-        // Sección de productos destacados
         Text(
             text = "Destacados de la semana",
             fontSize = 20.sp,
@@ -112,7 +100,6 @@ fun IndexScreen(navController: NavController) {
             modifier = Modifier.padding(vertical = 20.dp)
         )
 
-        // Mensaje final
         Text(
             text = "Hecho con amor desde 1975 💖",
             fontSize = 14.sp,
@@ -126,9 +113,7 @@ fun IndexScreen(navController: NavController) {
 @Composable
 fun ProductCard(image: String, nombre: String, precio: String, descripcion: String) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
     ) {
@@ -139,10 +124,7 @@ fun ProductCard(image: String, nombre: String, precio: String, descripcion: Stri
             Image(
                 painter = rememberAsyncImagePainter(model = "file:///android_asset/img/" + Uri.encode(image)),
                 contentDescription = nombre,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp)
-                    .clip(RoundedCornerShape(10.dp)),
+                modifier = Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(10.dp)),
                 contentScale = ContentScale.Crop
             )
             Text(

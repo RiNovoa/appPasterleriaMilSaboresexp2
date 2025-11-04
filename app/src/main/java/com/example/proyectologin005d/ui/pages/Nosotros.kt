@@ -1,6 +1,9 @@
 package com.example.proyectologin005d.ui.pages
 
-import androidx.compose.foundation.Image
+import android.net.Uri
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,29 +13,44 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.proyectologin005d.R
+import coil.compose.AsyncImage
+
+private fun assetUrl(imageName: String): String {
+    return "file:///android_asset/img/${Uri.encode(imageName)}"
+}
 
 @Composable
 fun Nosotros() {
     val scroll = rememberScrollState()
+    var expanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        expanded = true
+    }
+
+    val padding by animateDpAsState(
+        targetValue = if (expanded) 16.dp else 0.dp,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = ""
+    )
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scroll)
-            .padding(16.dp),
+            .padding(padding)
+            .alpha(if (expanded) 1f else 0f),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Encabezado
         Text(
             text = "Nosotros",
             fontSize = 30.sp,
@@ -46,18 +64,13 @@ fun Nosotros() {
             modifier = Modifier.padding(vertical = 8.dp)
         )
 
-        // Imagen principal
-        Image(
-            painter = painterResource(id = R.drawable.local),
-            contentDescription = "Fachada de la pastelería",
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp)
-                .padding(vertical = 8.dp),
+        AsyncImage(
+            model = assetUrl("tienda.png"),
+            contentDescription = "Nuestra tienda",
+            modifier = Modifier.fillMaxWidth().height(220.dp).padding(vertical = 8.dp),
             contentScale = ContentScale.Crop
         )
 
-        // Historia
         Text(
             text = "Nuestra Historia",
             fontSize = 22.sp,
@@ -76,16 +89,13 @@ Hoy continuamos innovando para mantener viva nuestra tradición dulce y artesana
             modifier = Modifier.padding(vertical = 8.dp)
         )
 
-        Image(
-            painter = painterResource(id = R.drawable.tienda),
-            contentDescription = "Equipo de pasteleros",
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp),
+        AsyncImage(
+            model = assetUrl("local.jpg"),
+            contentDescription = "Nuestro local",
+            modifier = Modifier.fillMaxWidth().height(220.dp),
             contentScale = ContentScale.Crop
         )
 
-        // Misión
         Text(
             text = "Nuestra Misión",
             fontSize = 22.sp,
@@ -103,17 +113,13 @@ Celebramos nuestras raíces y fomentamos la creatividad para que cada torta y po
             modifier = Modifier.padding(vertical = 8.dp)
         )
 
-        Image(
-            painter = painterResource(id = R.drawable.vitrina),
+        AsyncImage(
+            model = assetUrl("vitrina.png"),
             contentDescription = "Vitrina de pasteles",
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp)
-                .padding(vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().height(220.dp).padding(vertical = 8.dp),
             contentScale = ContentScale.Crop
         )
 
-        // Visión
         Text(
             text = "Nuestra Visión",
             fontSize = 22.sp,

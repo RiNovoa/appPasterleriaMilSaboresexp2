@@ -1,4 +1,4 @@
-package com.example.proyectologin005d.login
+package com.example.proyectologin005d.ui.login
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
