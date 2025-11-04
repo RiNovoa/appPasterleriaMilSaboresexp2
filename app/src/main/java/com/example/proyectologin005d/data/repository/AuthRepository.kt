@@ -1,24 +1,24 @@
 package com.example.proyectologin005d.data.repository
 
 import android.content.Context
-import com.example.proyectologin005d.data.SessionDataStore
+import com.example.proyectologin005d.data.database.SessionDataStore
 import com.example.proyectologin005d.data.model.User
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
-import java.io.IOException
 
 class AuthRepository(private val context: Context) {
 
     private val session = SessionDataStore(context)
+
     private val usersFile by lazy {
-        val databaseDir = File(context.filesDir, "database")
-        if (!databaseDir.exists()) {
-            databaseDir.mkdirs()
-        }
-        File(databaseDir, "Usuarios.json")
+        val dir = File(context.filesDir, "database")
+        if (!dir.exists()) dir.mkdirs()
+        File(dir, "Usuarios.json")
     }
 
     private val json = Json {
@@ -28,81 +28,61 @@ class AuthRepository(private val context: Context) {
     }
 
     init {
-        initializeUsersFile()
-    }
-
-    private fun initializeUsersFile() {
-        if (!usersFile.exists()) {
-            try {
-                context.assets.open("database/Usuarios.json").use { inputStream ->
-                    usersFile.outputStream().use { outputStream ->
-                        inputStream.copyTo(outputStream)
+        // Inicializa el archivo de usuarios desde assets (si existe), o crea vacío.
+        runCatching {
+            if (!usersFile.exists()) {
+                val ok = runCatching {
+                    context.assets.open("database/Usuarios.json").use { input ->
+                        usersFile.outputStream().use { output -> input.copyTo(output) }
                     }
-                }
-            } catch (e: IOException) {
-                e.printStackTrace()
+                }.isSuccess
+                if (!ok) usersFile.writeText("[]")
             }
         }
     }
 
-    private fun readUsers(): MutableList<User> {
-        return if (usersFile.exists() && usersFile.readText().isNotBlank()) {
-            try {
-                json.decodeFromString<MutableList<User>>(usersFile.readText())
-            } catch (e: Exception) {
-                e.printStackTrace()
-                mutableListOf()
-            }
-        } else {
-            mutableListOf()
-        }
+    private suspend fun readUsers(): MutableList<User> = withContext(Dispatchers.IO) {
+        val text = runCatching { usersFile.readText() }.getOrElse { "[]" }
+        runCatching { json.decodeFromString<MutableList<User>>(text) }.getOrElse { mutableListOf() }
     }
 
-    private fun writeUsers(users: List<User>) {
-        try {
-            usersFile.writeText(json.encodeToString(users))
-        } catch (e: IOException) {
-            e.printStackTrace()
-        }
+    private suspend fun writeUsers(users: List<User>) = withContext(Dispatchers.IO) {
+        usersFile.writeText(json.encodeToString(users))
     }
 
+    /** Registro simple en archivo local */
     suspend fun register(nombre: String, apellido: String, correo: String, contrasena: String): Boolean {
-        val users = readUsers()
-        if (users.any { it.correo.equals(correo, ignoreCase = true) }) {
-            return false
-        }
-        val newId = (users.maxOfOrNull { it.id } ?: 0) + 1
-        val newUser = User(
-            id = newId,
-            nombre = nombre,
-            apellido = apellido,
-            correo = correo,
-            contrasena = contrasena,
-            role = "user"
-        )
-        users.add(newUser)
-        writeUsers(users)
-        session.saveUser(newUser.correo)
-        return true
-    }
-
-    suspend fun login(correo: String, contrasena: String): Boolean {
-        val users = readUsers()
-        val user = users.find { it.correo.equals(correo, ignoreCase = true) && it.contrasena == contrasena }
-        return if (user != null) {
-            session.saveUser(user.correo)
+        return withContext(Dispatchers.IO) {
+            val users = readUsers()
+            if (users.any { it.correo.equals(correo, ignoreCase = true) }) return@withContext false
+            val newId = (users.maxOfOrNull { it.id } ?: 0) + 1
+            val newUser = User(id = newId, nombre = nombre, apellido = apellido, correo = correo, contrasena = contrasena, role = "user")
+            users.add(newUser)
+            writeUsers(users)
+            session.saveUser(newUser.correo)
             true
-        } else {
-            false
         }
     }
 
+    /** Login trivial contra el mismo archivo */
+    suspend fun login(correo: String, contrasena: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            val user = readUsers().find { it.correo.equals(correo, true) && it.contrasena == contrasena }
+            if (user != null) {
+                session.saveUser(user.correo)
+                true
+            } else false
+        }
+    }
+
+    /** Para el autologin del inicio */
     suspend fun getSessionUsername(): String? = session.currentUser.first()
 
-    fun getUserByUsername(correo: String): User? {
-        val users = readUsers()
-        return users.find { it.correo.equals(correo, ignoreCase = true) }
-    }
+    fun getUserByUsername(correo: String): User? = runCatching {
+        // Lectura no-suspend para usos puntuales UI; si quieres, cámbialo por suspend
+        val text = usersFile.takeIf { it.exists() }?.readText().orEmpty()
+        json.decodeFromString<List<User>>(text).find { it.correo.equals(correo, true) }
+    }.getOrNull()
 
     suspend fun logout() = session.clearUser()
 }

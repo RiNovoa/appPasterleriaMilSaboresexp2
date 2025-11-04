@@ -1,4 +1,5 @@
 package com.example.proyectologin005d.data.local
+
 import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -15,7 +16,10 @@ data class CatalogoProductoJson(
 )
 
 object JsonReader {
-    fun cargarCatalogo(context: Context, file: String = "database/Pasteles.json"): List<CatalogoProductoJson> {
+    fun cargarCatalogo(
+        context: Context,
+        file: String = "database/Pasteles.json"
+    ): List<CatalogoProductoJson> {
         context.assets.open(file).use { input ->
             InputStreamReader(input).use { reader ->
                 val type = object : TypeToken<List<CatalogoProductoJson>>() {}.type

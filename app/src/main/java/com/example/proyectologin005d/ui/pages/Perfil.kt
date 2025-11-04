@@ -1,25 +1,45 @@
 package com.example.proyectologin005d.ui.pages
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.proyectologin005d.R
 import com.example.proyectologin005d.data.model.User
 import com.example.proyectologin005d.data.repository.AuthRepository
 import kotlinx.coroutines.launch
+import java.io.File
 
+// Íconos
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.PhotoLibrary
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PerfilScreen(
     navController: NavController
@@ -27,100 +47,244 @@ fun PerfilScreen(
     val cs = MaterialTheme.colorScheme
     val ty = MaterialTheme.typography
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     val authRepository = remember { AuthRepository(context) }
     var user by remember { mutableStateOf<User?>(null) }
 
+    // Cargar usuario y foto guardada
+    var fotoUri by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
         val username = authRepository.getSessionUsername()
         if (username != null) {
             user = authRepository.getUserByUsername(username)
+            fotoUri = loadPhotoUriForUser(context, username)
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
+    // -------- Cámara (TakePicture) --------
+    var outputUri by remember { mutableStateOf<Uri?>(null) }
+    val takePicture = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { ok ->
+        if (ok && outputUri != null) {
+            val uriString = outputUri.toString()
+            fotoUri = uriString
+            user?.let { savePhotoUriForUser(context, it.nombre, uriString) }
+        }
+    }
+
+    val requestCamera = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            outputUri = createImageUri(context)
+            outputUri?.let { takePicture.launch(it) }
+        } else {
+            Toast.makeText(context, "Se requiere permiso de cámara", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun launchCamera() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            outputUri = createImageUri(context)
+            outputUri?.let { takePicture.launch(it) }
+        } else {
+            requestCamera.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    // -------- Galería (Photo Picker) --------
+    val pickFromGallery = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            val uriString = uri.toString()
+            fotoUri = uriString
+            user?.let { savePhotoUriForUser(context, it.nombre, uriString) }
+        }
+    }
+
+    fun launchGallery() {
+        pickFromGallery.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        )
+    }
+
+    // -------- Bottom sheet con opciones --------
+    var showSheet by remember { mutableStateOf(false) }
+    if (showSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showSheet = false },
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                Text("Cambiar foto de perfil", style = ty.titleMedium)
+                Spacer(Modifier.height(8.dp))
+
+                ListItem(
+                    leadingContent = { Icon(Icons.Outlined.PhotoCamera, null) },
+                    headlineContent = { Text("Tomar foto") },
+                    supportingContent = { Text("Usar la cámara del dispositivo") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            showSheet = false
+                            launchCamera()
+                        }
+                )
+                ListItem(
+                    leadingContent = { Icon(Icons.Outlined.PhotoLibrary, null) },
+                    headlineContent = { Text("Elegir de galería") },
+                    supportingContent = { Text("Seleccionar una imagen del dispositivo") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            showSheet = false
+                            launchGallery()
+                        }
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+    }
+
+    // -------- Layout principal con botón fijo abajo --------
+    Scaffold(
+        bottomBar = {
+            Surface(shadowElevation = 8.dp) {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            authRepository.logout()
+                            navController.navigate("login") {
+                                popUpTo(0) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                        .height(52.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = cs.secondary,
+                        contentColor = cs.onSecondary
+                    )
+                ) {
+                    Text("Cerrar sesión", style = ty.titleMedium)
+                }
+            }
+        }
+    ) { innerPadding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 48.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top
+                .padding(innerPadding)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
-            // Imagen por defecto del perfil
-            Image(
-                painter = painterResource(R.drawable.ic_default_profile),
+            // --- Avatar grande ---
+            val imgModel: Any = fotoUri ?: R.drawable.ic_default_profile
+            AsyncImage(
+                model = imgModel,
                 contentDescription = "Foto de perfil",
                 modifier = Modifier
-                    .size(120.dp)
+                    .size(144.dp)
                     .clip(CircleShape)
-                    .background(cs.secondary.copy(alpha = 0.3f))
+                    .border(3.dp, cs.primary, CircleShape),
+                contentScale = ContentScale.Crop
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(14.dp))
 
-            // Nombre de usuario
-            Text(
-                text = user?.nombre ?: "Usuario",
-                style = ty.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = cs.primary
-            )
+            OutlinedButton(
+                onClick = { showSheet = true },
+                modifier = Modifier.height(40.dp)
+            ) { Text("Cambiar foto") }
 
-            // Correo electrónico
-            Text(
-                text = user?.correo ?: "correo@ejemplo.com",
-                style = ty.bodyMedium,
-                color = cs.onBackground.copy(alpha = 0.7f)
-            )
+            Spacer(Modifier.height(18.dp))
 
-            Spacer(Modifier.height(32.dp))
-
-            Divider(
-                color = cs.secondary.copy(alpha = 0.4f),
-                thickness = 1.dp,
-                modifier = Modifier.padding(vertical = 16.dp)
-            )
-
-            Text(
-                text = "Beneficios activos",
-                style = ty.titleMedium,
-                color = cs.primary
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "• 10% descuento permanente (FELICES50)\n• Regalo de cumpleaños con correo Duoc",
-                style = ty.bodySmall,
-                color = cs.onBackground.copy(alpha = 0.7f)
-            )
-        }
-
-        // Botón de cerrar sesión (abajo)
-        val scope = rememberCoroutineScope()
-        Button(
-            onClick = {
-                scope.launch {
-                    authRepository.logout()
-                    navController.navigate("login") {
-                        popUpTo(0) { inclusive = true }
-                        launchSingleTop = true
-                    }
+            // --- Card de nombre y correo (uniformes, centrados) ---
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = cs.surfaceContainerHigh
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = user?.nombre ?: "Usuario",
+                        style = ty.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = user?.correo ?: "correo@ejemplo.com",
+                        style = ty.bodyLarge,
+                        color = cs.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
                 }
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = cs.secondary,
-                contentColor = cs.onSecondary
-            ),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(48.dp)
-        ) {
-            Text("Cerrar sesión", style = ty.titleSmall)
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            // Empujar el bloque de beneficios hacia abajo
+            Spacer(Modifier.weight(1f))
+
+            // --- Beneficios activos (pegado al botón inferior) ---
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = cs.surfaceContainerLow
+                )
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        "Beneficios activos",
+                        style = ty.titleMedium,
+                        color = cs.primary
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "• 10% de descuento permanente (FELICES50)\n" +
+                                "• Regalo de cumpleaños con correo Duoc",
+                        style = ty.bodyMedium,
+                        color = cs.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
+}
+
+/* ====================== Helpers ====================== */
+
+private fun createImageUri(context: Context): Uri? {
+    val dir = File(context.filesDir, "photos").apply { mkdirs() }
+    val file = File(dir, "perfil_${System.currentTimeMillis()}.jpg")
+    return FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file
+    )
+}
+
+private fun savePhotoUriForUser(context: Context, username: String, uri: String) {
+    context.getSharedPreferences("perfil_photos", Context.MODE_PRIVATE)
+        .edit()
+        .putString("photo_$username", uri)
+        .apply()
+}
+
+private fun loadPhotoUriForUser(context: Context, username: String): String? {
+    return context.getSharedPreferences("perfil_photos", Context.MODE_PRIVATE)
+        .getString("photo_$username", null)
 }
